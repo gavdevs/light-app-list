@@ -1,0 +1,65 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout App List
+        uses: actions/checkout@v4
+        with:
+          path: light-app-list
+
+      # App List declares the app-access capability, which exists only in the
+      # fork below, so the SDK is pinned to a commit that has it.
+      - name: Checkout companion Light SDK
+        uses: actions/checkout@v4
+        with:
+          repository: gavdevs/light-sdk
+          ref: 701ab4c7faf686601040fe1d796340096159ff67
+          path: light-sdk
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android packages
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run tests, lint, and build debug APK
+        working-directory: light-app-list
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: light-app-list-debug
+          path: light-app-list/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: light-app-list-lint
+          path: light-app-list/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
