@@ -61,6 +61,7 @@ data class AppListUiState(
     val query: String = "",
     val message: String? = null,
     val notificationsGranted: Boolean = false,
+    val pinnedCount: Int = 0,
 ) {
     val isSearching: Boolean get() = query.isNotBlank()
 }
@@ -97,7 +98,13 @@ class AppListViewModel(
             val granted = notifications.isAccessGranted()
             notifyingPackages = if (granted) readNotifyingPackages() else emptySet()
             rebuild()
-            _uiState.update { it.copy(loading = false, notificationsGranted = granted) }
+            _uiState.update {
+                it.copy(
+                    loading = false,
+                    notificationsGranted = granted,
+                    pinnedCount = prefs.pinned.size,
+                )
+            }
         }
     }
 
@@ -285,6 +292,26 @@ class AppListScreen(sealedActivity: SealedLightActivity) :
                         } else {
                             null
                         },
+                        // Ordering only matters once two rows can swap places.
+                        reorderRow = if (state.scope == AppListScope.Visible &&
+                            state.pinnedCount > 1 &&
+                            !state.isSearching
+                        ) {
+                            {
+                                navigateTo(
+                                    screenFactory = { activity ->
+                                        ReorderPinnedScreen(
+                                            activity,
+                                            services.repository,
+                                            services.store,
+                                        )
+                                    },
+                                    resultCallback = { viewModel.refresh() },
+                                )
+                            }
+                        } else {
+                            null
+                        },
                         onTap = viewModel::launch,
                         onLongPress = { entry ->
                             navigateTo(
@@ -331,6 +358,7 @@ private fun AppRows(
     rows: List<AppRow>,
     modifier: Modifier = Modifier,
     hiddenRow: (() -> Unit)? = null,
+    reorderRow: (() -> Unit)? = null,
     onTap: (AppEntry) -> Unit,
     onLongPress: (AppEntry) -> Unit,
 ) {
@@ -376,6 +404,18 @@ private fun AppRows(
                 contentAlignment = Alignment.CenterStart,
             ) {
                 LightText(text = "Hidden apps", variant = LightTextVariant.Copy, lighten = true)
+            }
+        }
+        reorderRow?.let { openReorder ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ROW_HEIGHT_UNITS.gridUnitsAsDp())
+                    .lightClickable(onClick = openReorder)
+                    .padding(horizontal = 1f.gridUnitsAsDp()),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                LightText(text = "Order pinned", variant = LightTextVariant.Copy, lighten = true)
             }
         }
     }

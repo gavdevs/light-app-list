@@ -120,6 +120,35 @@ class AppEntryTest {
     }
 
     @Test
+    fun `repeated moves walk a row through the whole pinned block`() {
+        val a = installed("Aaa")
+        val b = installed("Bbb")
+        val c = installed("Ccc")
+        val d = installed("Ddd")
+        var state = AppListState(pinned = listOf(a.key, b.key, c.key, d.key))
+
+        // The reorder screen applies one step per tap, so a sequence of taps has
+        // to land where a user watching the rows expects.
+        state = state.movedDown(a.key).movedDown(a.key).movedDown(a.key)
+        assertEquals(listOf(b.key, c.key, d.key, a.key), state.pinned)
+
+        state = state.movedUp(a.key).movedUp(a.key)
+        assertEquals(listOf(b.key, a.key, c.key, d.key), state.pinned)
+    }
+
+    @Test
+    fun `the reorder screen shows the pinned order not the alphabetical one`() {
+        val a = installed("Aaa")
+        val b = installed("Bbb")
+        val c = installed("Ccc")
+        val state = AppListState(pinned = listOf(c.key, a.key, b.key))
+
+        val ordered = AppListSorter.ordered(listOf(a, b, c), state, alphabetical)
+
+        assertEquals(listOf(c.key, a.key, b.key), ordered.map { it.key })
+    }
+
+    @Test
     fun `moving a row that is not pinned changes nothing`() {
         val a = installed("Aaa")
         val state = AppListState(pinned = listOf(installed("Other").key))
