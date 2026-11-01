@@ -3,6 +3,7 @@ package com.gavyn.applist.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,15 +23,16 @@ import com.gavyn.applist.data.AppListState
 import com.gavyn.applist.data.AppListStore
 import com.gavyn.applist.data.AppRepository
 import com.gavyn.applist.data.AppSearch
+import com.gavyn.applist.data.AppTarget
 import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
+import com.thelightphone.sdk.apps.LightNotifications
 import com.thelightphone.sdk.ui.LightBarButton
 import com.thelightphone.sdk.ui.LightIcons
 import com.thelightphone.sdk.ui.LightScrollView
 import com.thelightphone.sdk.ui.LightText
-import com.thelightphone.sdk.ui.LightTextField
 import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightTheme
 import com.thelightphone.sdk.ui.LightThemeController
@@ -58,16 +60,22 @@ data class AppListUiState(
     val scope: AppListScope = AppListScope.Visible,
     val query: String = "",
     val message: String? = null,
+    val notificationsGranted: Boolean = false,
 ) {
     val isSearching: Boolean get() = query.isNotBlank()
 }
 
-/** A rendered row: the entry plus the name the user chose for it. */
-data class AppRow(val entry: AppEntry, val name: String)
+/** A rendered row: the entry plus what the list shows for it. */
+data class AppRow(
+    val entry: AppEntry,
+    val name: String,
+    val hasNotifications: Boolean = false,
+)
 
 class AppListViewModel(
     private val repository: AppRepository,
     private val store: AppListStore,
+    private val notifications: LightNotifications,
 ) : LightViewModel<Unit>() {
 
     private val _uiState = MutableStateFlow(AppListUiState())
@@ -76,6 +84,7 @@ class AppListViewModel(
     private var entries: List<AppEntry> = emptyList()
     private var prefs = AppListState()
     private var query = ""
+    private var notifyingPackages: Set<String> = emptySet()
 
     /**
      * Re-reads preferences and rebuilds the rows. [reenumerate] also re-reads the
@@ -85,8 +94,26 @@ class AppListViewModel(
         viewModelScope.launch {
             prefs = store.current()
             entries = repository.entries(force = reenumerate)
+            val granted = notifications.isAccessGranted()
+            notifyingPackages = if (granted) readNotifyingPackages() else emptySet()
             rebuild()
-            _uiState.update { it.copy(loading = false) }
+            _uiState.update { it.copy(loading = false, notificationsGranted = granted) }
+        }
+    }
+
+    /**
+     * Packages with a notification currently posted. Empty when the user has not
+     * granted notification access, which shows no indicators rather than an
+     * error — the list is still useful without them.
+     */
+    private suspend fun readNotifyingPackages(): Set<String> =
+        notifications.active().mapTo(mutableSetOf()) { it.packageName }
+
+    fun openNotificationAccessSettings() {
+        viewModelScope.launch {
+            if (!notifications.openAccessSettings()) {
+                _uiState.update { it.copy(message = "Could not open notification settings") }
+            }
         }
     }
 
@@ -117,7 +144,16 @@ class AppListViewModel(
         val rows = AppListSorter
             .ordered(entries, prefs)
             .filter { (it.key in prefs.hidden) == (scope == AppListScope.Hidden) }
-            .map { AppRow(it, prefs.displayName(it)) }
+            .map { entry ->
+                AppRow(
+                    entry = entry,
+                    name = prefs.displayName(entry),
+                    hasNotifications = when (val target = entry.target) {
+                        is AppTarget.Installed -> target.packageName in notifyingPackages
+                        is AppTarget.Setting -> false
+                    },
+                )
+            }
             .filter { AppSearch.matches(it.name, query) }
         _uiState.update { it.copy(rows = rows, query = query) }
     }
@@ -131,7 +167,11 @@ class AppListScreen(sealedActivity: SealedLightActivity) :
 
     override val viewModelClass = AppListViewModel::class.java
 
-    override fun createViewModel() = AppListViewModel(services.repository, services.store)
+    override fun createViewModel() = AppListViewModel(
+        services.repository,
+        services.store,
+        services.notifications,
+    )
 
     override fun willShow() {
         // Returning from the actions or rename screen, or from launching another
@@ -143,6 +183,15 @@ class AppListScreen(sealedActivity: SealedLightActivity) :
     override fun Content() {
         val colors by LightThemeController.colors.collectAsState()
         val state by viewModel.uiState.collectAsState()
+
+        fun openSearch(current: String) {
+            navigateTo(
+                screenFactory = { activity -> TextEntryScreen(activity, "Search", current) },
+                // Null means the user backed out, which must not be mistaken for
+                // clearing the query.
+                resultCallback = { query -> query?.let(viewModel::search) },
+            )
+        }
 
         LightTheme(colors = colors) {
             val palette = LightThemeTokens.colors
@@ -163,25 +212,44 @@ class AppListScreen(sealedActivity: SealedLightActivity) :
                     center = LightTopBarCenter.Text(
                         if (state.scope == AppListScope.Hidden) "Hidden" else "Apps"
                     ),
+                    rightButton = LightBarButton.LightIcon(
+                        icon = LightIcons.SEARCH,
+                        onClick = { openSearch(state.query) },
+                        contentDescription = "Search",
+                    ),
                     modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                 )
 
-                LightTextField(
-                    label = "Search",
-                    value = state.query,
-                    placeholder = "All apps",
-                    onClick = {
-                        navigateTo(
-                            screenFactory = { activity ->
-                                TextEntryScreen(activity, "Search", state.query)
-                            },
-                            // Null means the user backed out, which must not be
-                            // mistaken for clearing the query.
-                            resultCallback = { query -> query?.let(viewModel::search) },
+                // The query is shown only once it is set: a permanent labelled
+                // field costs several rows of list space for a control that is
+                // usually untouched.
+                if (state.query.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .lightClickable { openSearch(state.query) }
+                            .padding(
+                                horizontal = 1f.gridUnitsAsDp(),
+                                vertical = 0.5f.gridUnitsAsDp(),
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LightText(
+                            text = state.query,
+                            variant = LightTextVariant.Copy,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
                         )
-                    },
-                    modifier = Modifier.padding(horizontal = 1f.gridUnitsAsDp()),
-                )
+                        LightText(
+                            text = "✕",
+                            variant = LightTextVariant.Copy,
+                            modifier = Modifier
+                                .lightClickable { viewModel.search("") }
+                                .padding(horizontal = 1f.gridUnitsAsDp()),
+                        )
+                    }
+                }
 
                 state.message?.let { message ->
                     LightText(
@@ -233,6 +301,26 @@ class AppListScreen(sealedActivity: SealedLightActivity) :
                         },
                     )
                 }
+
+                // Indicators are the only thing notification access is used
+                // for, so the prompt appears once and only on the main list.
+                if (!state.loading &&
+                    state.scope == AppListScope.Visible &&
+                    !state.notificationsGranted
+                ) {
+                    LightText(
+                        text = "Turn on notification access to mark apps with *",
+                        variant = LightTextVariant.Fine,
+                        lighten = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .lightClickable { viewModel.openNotificationAccessSettings() }
+                            .padding(
+                                horizontal = 1f.gridUnitsAsDp(),
+                                vertical = 0.5f.gridUnitsAsDp(),
+                            ),
+                    )
+                }
             }
         }
     }
@@ -248,7 +336,7 @@ private fun AppRows(
 ) {
     LightScrollView(modifier = modifier.fillMaxSize()) {
         rows.forEach { row ->
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(ROW_HEIGHT_UNITS.gridUnitsAsDp())
@@ -259,14 +347,23 @@ private fun AppRows(
                         onLongPress = { onLongPress(row.entry) },
                     )
                     .padding(horizontal = 1f.gridUnitsAsDp()),
-                contentAlignment = Alignment.CenterStart,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 LightText(
                     text = row.name,
                     variant = LightTextVariant.Copy,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (row.hasNotifications) {
+                    LightText(
+                        // Same mark LightOS uses for an unread item.
+                        text = "*",
+                        variant = LightTextVariant.Copy,
+                        modifier = Modifier.padding(start = 0.5f.gridUnitsAsDp()),
+                    )
+                }
             }
         }
         hiddenRow?.let { openHidden ->

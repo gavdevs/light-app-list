@@ -4,6 +4,7 @@ import com.gavyn.applist.data.AppListStore
 import com.gavyn.applist.data.AppRepository
 import com.thelightphone.sdk.SealedLightContext
 import com.thelightphone.sdk.apps.LightAppList
+import com.thelightphone.sdk.apps.LightNotifications
 
 /**
  * Process-wide dependencies.
@@ -14,6 +15,7 @@ import com.thelightphone.sdk.apps.LightAppList
 class AppListServices private constructor(
     val repository: AppRepository,
     val store: AppListStore,
+    val notifications: LightNotifications,
 ) {
     companion object {
         @Volatile
@@ -24,6 +26,7 @@ class AppListServices private constructor(
                 instance ?: AppListServices(
                     repository = AppRepository(context.appAccess.apps),
                     store = AppListStore(context.dataStore),
+                    notifications = context.appAccess.notifications,
                 ).also { instance = it }
             }
     }
