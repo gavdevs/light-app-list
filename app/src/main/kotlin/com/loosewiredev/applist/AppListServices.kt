@@ -1,7 +1,7 @@
-package com.gavyn.applist
+package com.loosewiredev.applist
 
-import com.gavyn.applist.data.AppListStore
-import com.gavyn.applist.data.AppRepository
+import com.loosewiredev.applist.data.AppListStore
+import com.loosewiredev.applist.data.AppRepository
 import com.thelightphone.sdk.SealedLightContext
 import com.thelightphone.sdk.apps.LightAppList
 import com.thelightphone.sdk.apps.LightNotifications

@@ -1,4 +1,4 @@
-package com.gavyn.applist.ui
+package com.loosewiredev.applist.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -16,14 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewModelScope
-import com.gavyn.applist.AppListServices
-import com.gavyn.applist.data.AppEntry
-import com.gavyn.applist.data.AppListSorter
-import com.gavyn.applist.data.AppListState
-import com.gavyn.applist.data.AppListStore
-import com.gavyn.applist.data.AppRepository
-import com.gavyn.applist.data.AppSearch
-import com.gavyn.applist.data.AppTarget
+import com.loosewiredev.applist.AppListServices
+import com.loosewiredev.applist.data.AppEntry
+import com.loosewiredev.applist.data.AppListSorter
+import com.loosewiredev.applist.data.AppListState
+import com.loosewiredev.applist.data.AppListStore
+import com.loosewiredev.applist.data.AppRepository
+import com.loosewiredev.applist.data.AppSearch
+import com.loosewiredev.applist.data.AppTarget
 import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel

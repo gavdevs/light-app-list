@@ -1,4 +1,4 @@
-package com.gavyn.applist.ui
+package com.loosewiredev.applist.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize

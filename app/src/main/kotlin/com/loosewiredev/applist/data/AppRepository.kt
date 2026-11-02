@@ -1,4 +1,4 @@
-package com.gavyn.applist.data
+package com.loosewiredev.applist.data
 
 import com.thelightphone.sdk.apps.LightAppInfo
 import com.thelightphone.sdk.apps.LightAppList
