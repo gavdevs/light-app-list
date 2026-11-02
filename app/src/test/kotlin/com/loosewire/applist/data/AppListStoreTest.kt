@@ -1,4 +1,4 @@
-package com.loosewiredev.applist.data
+package com.loosewire.applist.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences

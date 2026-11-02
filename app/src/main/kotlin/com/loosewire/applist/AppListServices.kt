@@ -1,7 +1,7 @@
-package com.loosewiredev.applist
+package com.loosewire.applist
 
-import com.loosewiredev.applist.data.AppListStore
-import com.loosewiredev.applist.data.AppRepository
+import com.loosewire.applist.data.AppListStore
+import com.loosewire.applist.data.AppRepository
 import com.thelightphone.sdk.SealedLightContext
 import com.thelightphone.sdk.apps.LightAppList
 import com.thelightphone.sdk.apps.LightNotifications

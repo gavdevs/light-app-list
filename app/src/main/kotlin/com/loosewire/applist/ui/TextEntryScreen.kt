@@ -1,4 +1,4 @@
-package com.loosewiredev.applist.ui
+package com.loosewire.applist.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize

@@ -1,4 +1,4 @@
-package com.loosewiredev.applist.ui
+package com.loosewire.applist.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -15,9 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewModelScope
-import com.loosewiredev.applist.data.AppEntry
-import com.loosewiredev.applist.data.AppListStore
-import com.loosewiredev.applist.data.AppRepository
+import com.loosewire.applist.data.AppEntry
+import com.loosewire.applist.data.AppListStore
+import com.loosewire.applist.data.AppRepository
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity

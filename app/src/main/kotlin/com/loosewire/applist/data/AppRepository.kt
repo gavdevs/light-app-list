@@ -1,4 +1,4 @@
-package com.loosewiredev.applist.data
+package com.loosewire.applist.data
 
 import com.thelightphone.sdk.apps.LightAppInfo
 import com.thelightphone.sdk.apps.LightAppList

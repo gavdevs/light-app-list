@@ -1,5 +1,5 @@
 [tool]
-id = "com.loosewiredev.applist"
+id = "com.loosewire.applist"
 label = "App List"
 versionCode = 1
 versionName = "0.1.0"
